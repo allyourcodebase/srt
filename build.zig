@@ -31,6 +31,7 @@ pub fn build(b: *std.Build) void {
     haicrypt.installHeader(srt_dep.path("haicrypt/hcrypt_ctx.h"), "hcrypt_ctx.h");
     haicrypt.installHeader(srt_dep.path("haicrypt/hcrypt_msg.h"), "hcrypt_msg.h");
     haicrypt.installLibraryHeaders(mbedtls_dep.artifact("mbedtls"));
+    haicrypt.addIncludePath(srt_dep.path("common"));
 
     inline for (haicrypt_files) |file|
         haicrypt.addCSourceFile(.{
@@ -116,6 +117,7 @@ fn set_defines(lib: *Build.Step.Compile, target: Build.ResolvedTarget) void {
         else => {},
     }
 
+    lib.defineCMacro("HAVE_CXX_STD_PUT_TIME", "1");
     lib.defineCMacro("USE_MBEDTLS", "1");
     lib.defineCMacro("SRT_ENABLE_ENCRYPTION", "1");
     lib.defineCMacro("_GNU_SOURCE", null);
