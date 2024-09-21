@@ -63,6 +63,7 @@ pub fn build(b: *std.Build) void {
     srtcore.addIncludePath(version_header.getOutput().dirname());
     srtcore.addIncludePath(srt_dep.path("haicrypt"));
     srtcore.addIncludePath(srt_dep.path("srtcore"));
+    srtcore.addIncludePath(srt_dep.path("common"));
     srtcore.installHeader(srt_dep.path("srtcore/srt.h"), "srt.h");
     srtcore.installHeader(srt_dep.path("srtcore/logging_api.h"), "logging_api.h");
     srtcore.installHeader(srt_dep.path("srtcore/access_control.h"), "access_control.h");
