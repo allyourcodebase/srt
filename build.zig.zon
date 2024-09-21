@@ -1,0 +1,25 @@
+.{
+    .name = "srt-zig",
+    .version = "1.5.3",
+    .minimum_zig_version = "0.13.0",
+    .dependencies = .{
+        .srt = .{
+            .url = "https://github.com/Haivision/srt/archive/refs/tags/v1.5.3.tar.gz",
+            .hash = "1220307876d2151e963e5ee06b7b0607453be1dc1539f8c4d8bac85bd8b548ae20f6",
+        },
+        .mbedtls = .{
+            .url = "git+https://github.com/allyourcodebase/mbedtls.git#2e705d82c704f0817d2331ac386f0df2d1c3c6c6",
+            .hash = "1220ffeef9740c79b6f62f6bf350f12a7b14768acf548cb47cd56c5ca58a15af7970",
+        },
+        .googletest = .{
+            .url = "git+https://github.com/allyourcodebase/googletest.git#4c5cf0207c4db459d7c950c629398244e13b44b2",
+            .hash = "1220e6a0a3273e7df58603983d4fe03b71861e4d4c60c46f18be64273090f60697f2",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "LICENSE",
+        "README.md",
+    },
+}
