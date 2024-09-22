@@ -18,6 +18,25 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    // TODO:
+    // ENABLE_APPS
+    // ENABLE_BONDING
+    // ENABLE_CXX11
+    // ENABLE_DEBUG
+    // ENABLE_ENCRYPTION
+    // ENABLE_GETNAMEINFO
+    // ENABLE_HAICRYPT_LOGGING
+    // ENABLE_HEAVY_LOGGING
+    // ENABLE_INET_PTON
+    // ENABLE_LOGGING
+    // ENABLE_MONOTONIC_CLOCK
+    // ENABLE_STDCXX_SYNC
+    // ENABLE_THREAD_CHECK
+    // ENABLE_TESTING
+    // USE_CXX_STD
+    // USE_ENCLIB
+    // USE_STATIC_LIBSTDCXX
+
     const haicrypt = b.addStaticLibrary(.{
         .name = "haicrypt",
         .target = target,
@@ -31,6 +50,7 @@ pub fn build(b: *std.Build) void {
     haicrypt.installHeader(srt_dep.path("haicrypt/hcrypt_ctx.h"), "hcrypt_ctx.h");
     haicrypt.installHeader(srt_dep.path("haicrypt/hcrypt_msg.h"), "hcrypt_msg.h");
     haicrypt.installLibraryHeaders(mbedtls_dep.artifact("mbedtls"));
+    haicrypt.addIncludePath(srt_dep.path("common"));
 
     inline for (haicrypt_files) |file|
         haicrypt.addCSourceFile(.{
@@ -62,6 +82,7 @@ pub fn build(b: *std.Build) void {
     srtcore.addIncludePath(version_header.getOutput().dirname());
     srtcore.addIncludePath(srt_dep.path("haicrypt"));
     srtcore.addIncludePath(srt_dep.path("srtcore"));
+    srtcore.addIncludePath(srt_dep.path("common"));
     srtcore.installHeader(srt_dep.path("srtcore/srt.h"), "srt.h");
     srtcore.installHeader(srt_dep.path("srtcore/logging_api.h"), "logging_api.h");
     srtcore.installHeader(srt_dep.path("srtcore/access_control.h"), "access_control.h");
@@ -72,6 +93,22 @@ pub fn build(b: *std.Build) void {
             .file = srt_dep.path(b.fmt("srtcore/{s}", .{file})),
             .flags = flags,
         });
+
+    switch (target.result.os.tag) {
+        .linux, .macos => {
+            srtcore.addCSourceFile(.{
+                .file = srt_dep.path("srtcore/sync_posix.cpp"),
+                .flags = flags,
+            });
+        },
+        .windows => {
+            srtcore.addCSourceFile(.{
+                .file = srt_dep.path("srtcore/sync_cxx11.cpp"),
+                .flags = flags,
+            });
+        },
+        else => {},
+    }
 
     b.installArtifact(srtcore);
 
@@ -117,6 +154,7 @@ pub fn build(b: *std.Build) void {
     tests.linkLibrary(haicrypt);
     tests.addIncludePath(srt_dep.path("srtcore"));
     tests.addIncludePath(srt_dep.path("haicrypt"));
+    tests.addIncludePath(srt_dep.path("common"));
 
     inline for (test_files) |file|
         tests.addCSourceFile(.{
@@ -145,6 +183,8 @@ fn set_defines(lib: *Build.Step.Compile, target: Build.ResolvedTarget) void {
         else => {},
     }
 
+    lib.defineCMacro("ENABLE_STDCXX_SYNC", "1");
+    lib.defineCMacro("HAVE_CXX_STD_PUT_TIME", "1");
     lib.defineCMacro("USE_MBEDTLS", "1");
     lib.defineCMacro("SRT_ENABLE_ENCRYPTION", "1");
     lib.defineCMacro("_GNU_SOURCE", null);
@@ -182,7 +222,7 @@ const srtcore_files = &.{
     "list.cpp",
     "logger_default.cpp",
     "logger_defs.cpp",
-    "sync_posix.cpp",
+
     "md5.cpp",
     "packet.cpp",
     "packetfilter.cpp",
