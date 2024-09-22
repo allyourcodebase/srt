@@ -94,6 +94,15 @@ pub fn build(b: *std.Build) void {
     srtcore.installHeader(srt_dep.path("srtcore/srt.h"), "srt.h");
     srtcore.installHeader(srt_dep.path("srtcore/logging_api.h"), "logging_api.h");
     srtcore.installHeader(srt_dep.path("srtcore/access_control.h"), "access_control.h");
+    if (target.result.os.tag == .windows) {
+        srtcore.installHeader(srt_dep.path("common/win/syslog_defs.h"), "win/syslog_defs.h");
+        srtcore.installHeader(srt_dep.path("common/win/unistd.h"), "win/unistd.h");
+        srtcore.installHeader(srt_dep.path("common/win/wintime.h"), "win/wintime.h");
+        srtcore.addCSourceFile(.{
+            .file = srt_dep.path("common/win_time.cpp"),
+            .flags = &.{"-std=c++11"},
+        });
+    }
     srtcore.installConfigHeader(version_header);
     srtcore.addCSourceFiles(.{
         .root = srt_dep.path("srtcore"),
@@ -188,6 +197,7 @@ pub fn build(b: *std.Build) void {
     file_transmit.linkLibrary(srtcore);
     file_transmit.addIncludePath(srt_dep.path("apps"));
     file_transmit.addIncludePath(srt_dep.path("srtcore"));
+    live_transmit.addIncludePath(srt_dep.path("core"));
     set_defines(file_transmit, target);
     b.installArtifact(file_transmit);
 
@@ -204,7 +214,7 @@ pub fn build(b: *std.Build) void {
     tests.linkLibrary(haicrypt);
     tests.addIncludePath(srt_dep.path("srtcore"));
     tests.addIncludePath(srt_dep.path("haicrypt"));
-    tests.addIncludePath(srt_dep.path("common"));
+    //tests.addIncludePath(srt_dep.path("common"));
     tests.addCSourceFiles(.{
         .root = srt_dep.path("test"),
         .flags = &.{"-fno-sanitize=undefined"},
