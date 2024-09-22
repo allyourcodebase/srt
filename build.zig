@@ -107,6 +107,7 @@ pub fn build(b: *std.Build) void {
     tests.linkLibrary(haicrypt);
     tests.addIncludePath(srt_dep.path("srtcore"));
     tests.addIncludePath(srt_dep.path("haicrypt"));
+    tests.addIncludePath(srt_dep.path("common"));
 
     inline for (test_files) |file|
         tests.addCSourceFile(.{
