@@ -83,6 +83,7 @@ pub fn build(b: *std.Build) void {
             });
         },
         .windows => {
+            srtcore.defineCMacro("ENABLE_STDCXX_SYNC", "1");
             srtcore.addCSourceFile(.{
                 .file = srt_dep.path("srtcore/sync_cxx11.cpp"),
                 .flags = flags,
