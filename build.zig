@@ -75,6 +75,22 @@ pub fn build(b: *std.Build) void {
             .flags = flags,
         });
 
+    switch (target.result.os.tag) {
+        .linux, .macos => {
+            srtcore.addCSourceFile(.{
+                .file = srt_dep.path("srtcore/sync_posix.cpp"),
+                .flags = flags,
+            });
+        },
+        .windows => {
+            srtcore.addCSourceFile(.{
+                .file = srt_dep.path("srtcore/sync_cxx11.cpp"),
+                .flags = flags,
+            });
+        },
+        else => {},
+    }
+
     b.installArtifact(srtcore);
 
     const tests = b.addExecutable(.{
@@ -156,7 +172,7 @@ const srtcore_files = &.{
     "list.cpp",
     "logger_default.cpp",
     "logger_defs.cpp",
-    "sync_posix.cpp",
+
     "md5.cpp",
     "packet.cpp",
     "packetfilter.cpp",
