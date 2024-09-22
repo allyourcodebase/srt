@@ -75,6 +75,35 @@ pub fn build(b: *std.Build) void {
 
     b.installArtifact(srtcore);
 
+    const live_transmit = b.addExecutable(.{
+        .name = "srt-live-transmit",
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+    });
+    live_transmit.addCSourceFiles(.{
+        .root = srt_dep.path("apps"),
+        .flags = &.{"-std=c++11"},
+        .files = &.{
+            "srt-live-transmit.cpp",
+            "apputil.cpp",
+            "uriparser.cpp",
+            "logsupport.cpp",
+            "logsupport_appdefs.cpp",
+            "socketoptions.cpp",
+            "transmitmedia.cpp",
+            "statswriter.cpp",
+            "verbose.cpp",
+        },
+    });
+    live_transmit.linkLibCpp();
+    live_transmit.linkLibrary(srtcore);
+    live_transmit.addIncludePath(srt_dep.path("apps"));
+    live_transmit.addIncludePath(srt_dep.path("srtcore"));
+    set_defines(live_transmit, target);
+
+    b.installArtifact(live_transmit);
+
     const tests = b.addExecutable(.{
         .name = "tests",
         .target = target,
