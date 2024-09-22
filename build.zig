@@ -173,7 +173,7 @@ pub fn build(b: *std.Build) void {
     inline for (test_files) |file|
         tests.addCSourceFile(.{
             .file = srt_dep.path(b.fmt("test/{s}", .{file})),
-            .flags = &.{},
+            .flags = &.{"-fno-sanitize=undefined"},
         });
 
     b.getInstallStep().dependOn(&tests.step);
