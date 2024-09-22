@@ -51,7 +51,9 @@ pub fn build(b: *std.Build) void {
     haicrypt.addIncludePath(srt_dep.path("common"));
     haicrypt.addCSourceFiles(.{
         .root = srt_dep.path("haicrypt"),
-        .flags = &.{},
+        .flags = &.{
+            "-fno-sanitize=undefined",
+        },
         .files = &.{
             "cryspr.c",
             "cryspr-mbedtls.c",
@@ -102,13 +104,20 @@ pub fn build(b: *std.Build) void {
         srtcore.installHeader(srt_dep.path("common/win/wintime.h"), "win/wintime.h");
         srtcore.addCSourceFile(.{
             .file = srt_dep.path("common/win_time.cpp"),
-            .flags = &.{"-std=c++11"},
+            .flags = &.{
+                "-std=c++11",
+                "-fno-sanitize=undefined",
+            },
         });
     }
     srtcore.installConfigHeader(version_header);
     srtcore.addCSourceFiles(.{
         .root = srt_dep.path("srtcore"),
-        .flags = &.{"-std=c++11"},
+        .flags = &.{
+            "-std=c++11",
+
+            "-fno-sanitize=undefined",
+        },
         .files = &.{
             "api.cpp",
             "buffer_snd.cpp",
@@ -141,7 +150,9 @@ pub fn build(b: *std.Build) void {
     });
     srtcore.addCSourceFile(.{
         .file = srt_dep.path("srtcore/srt_compat.c"),
-        .flags = &.{},
+        .flags = &.{
+            "-fno-sanitize=undefined",
+        },
     });
 
     b.installArtifact(srtcore);
@@ -154,7 +165,10 @@ pub fn build(b: *std.Build) void {
     });
     live_transmit.addCSourceFiles(.{
         .root = srt_dep.path("apps"),
-        .flags = &.{"-std=c++11"},
+        .flags = &.{
+            "-std=c++11",
+            "-fno-sanitize=undefined",
+        },
         .files = &.{
             "srt-live-transmit.cpp",
             "apputil.cpp",
@@ -182,7 +196,11 @@ pub fn build(b: *std.Build) void {
     });
     file_transmit.addCSourceFiles(.{
         .root = srt_dep.path("apps"),
-        .flags = &.{"-std=c++11"},
+        .flags = &.{
+            "-std=c++11",
+
+            "-fno-sanitize=undefined",
+        },
         .files = &.{
             "srt-file-transmit.cpp",
             "apputil.cpp",
