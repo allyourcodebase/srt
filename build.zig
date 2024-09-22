@@ -95,6 +95,7 @@ pub fn build(b: *std.Build) void {
     srtcore.addIncludePath(srt_dep.path("common"));
     srtcore.installHeader(srt_dep.path("srtcore/srt.h"), "srt.h");
     srtcore.installHeader(srt_dep.path("srtcore/logging_api.h"), "logging_api.h");
+    srtcore.installHeader(srt_dep.path("srtcore/platform_sys.h"), "platform_sys.h");
     srtcore.installHeader(srt_dep.path("srtcore/access_control.h"), "access_control.h");
     if (target.result.os.tag == .windows) {
         srtcore.linkSystemLibrary("wsock32");
