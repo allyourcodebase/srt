@@ -83,7 +83,6 @@ pub fn build(b: *std.Build) void {
             });
         },
         .windows => {
-            srtcore.defineCMacro("ENABLE_STDCXX_SYNC", "1");
             srtcore.addCSourceFile(.{
                 .file = srt_dep.path("srtcore/sync_cxx11.cpp"),
                 .flags = flags,
@@ -136,6 +135,7 @@ fn set_defines(lib: *Build.Step.Compile, target: Build.ResolvedTarget) void {
         else => {},
     }
 
+    lib.defineCMacro("ENABLE_STDCXX_SYNC", "1");
     lib.defineCMacro("HAVE_CXX_STD_PUT_TIME", "1");
     lib.defineCMacro("USE_MBEDTLS", "1");
     lib.defineCMacro("SRT_ENABLE_ENCRYPTION", "1");
