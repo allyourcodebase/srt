@@ -1,4 +1,4 @@
-const std = @import("std");
+const std = @import("file-std");
 const Build = std.Build;
 
 pub fn build(b: *std.Build) void {
@@ -18,7 +18,6 @@ pub fn build(b: *std.Build) void {
     });
 
     // TODO:
-    // ENABLE_APPS
     // ENABLE_BONDING
     // ENABLE_CXX11
     // ENABLE_DEBUG
@@ -50,12 +49,22 @@ pub fn build(b: *std.Build) void {
     haicrypt.installHeader(srt_dep.path("haicrypt/hcrypt_msg.h"), "hcrypt_msg.h");
     haicrypt.installLibraryHeaders(mbedtls_dep.artifact("mbedtls"));
     haicrypt.addIncludePath(srt_dep.path("common"));
-
-    inline for (haicrypt_files) |file|
-        haicrypt.addCSourceFile(.{
-            .file = srt_dep.path(b.fmt("haicrypt/{s}", .{file})),
-            .flags = &.{},
-        });
+    haicrypt.addCSourceFiles(.{
+        .root = srt_dep.path("haicrypt"),
+        .flags = &.{},
+        .files = &.{
+            "cryspr.c",
+            "cryspr-mbedtls.c",
+            "hcrypt.c",
+            "hcrypt_ctx_rx.c",
+            "hcrypt_ctx_tx.c",
+            "hcrypt_rx.c",
+            "hcrypt_sa.c",
+            "hcrypt_tx.c",
+            "hcrypt_xpt_srt.c",
+            "haicrypt_log.cpp",
+        },
+    });
 
     const version_header = b.addConfigHeader(.{
         .style = .{
@@ -152,8 +161,35 @@ pub fn build(b: *std.Build) void {
     live_transmit.addIncludePath(srt_dep.path("apps"));
     live_transmit.addIncludePath(srt_dep.path("srtcore"));
     set_defines(live_transmit, target);
-
     b.installArtifact(live_transmit);
+
+    const file_transmit = b.addExecutable(.{
+        .name = "srt-file-transmit",
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+    });
+    file_transmit.addCSourceFiles(.{
+        .root = srt_dep.path("apps"),
+        .flags = &.{"-std=c++11"},
+        .files = &.{
+            "srt-file-transmit.cpp",
+            "apputil.cpp",
+            "uriparser.cpp",
+            "logsupport.cpp",
+            "logsupport_appdefs.cpp",
+            "socketoptions.cpp",
+            "transmitmedia.cpp",
+            "statswriter.cpp",
+            "verbose.cpp",
+        },
+    });
+    file_transmit.linkLibCpp();
+    file_transmit.linkLibrary(srtcore);
+    file_transmit.addIncludePath(srt_dep.path("apps"));
+    file_transmit.addIncludePath(srt_dep.path("srtcore"));
+    set_defines(file_transmit, target);
+    b.installArtifact(file_transmit);
 
     const tests = b.addExecutable(.{
         .name = "tests",
@@ -169,13 +205,38 @@ pub fn build(b: *std.Build) void {
     tests.addIncludePath(srt_dep.path("srtcore"));
     tests.addIncludePath(srt_dep.path("haicrypt"));
     tests.addIncludePath(srt_dep.path("common"));
-
-    inline for (test_files) |file|
-        tests.addCSourceFile(.{
-            .file = srt_dep.path(b.fmt("test/{s}", .{file})),
-            .flags = &.{"-fno-sanitize=undefined"},
-        });
-
+    tests.addCSourceFiles(.{
+        .root = srt_dep.path("test"),
+        .flags = &.{"-fno-sanitize=undefined"},
+        .files = &.{
+            "test_main.cpp",
+            "test_buffer_rcv.cpp",
+            "test_common.cpp",
+            "test_connection_timeout.cpp",
+            "test_crypto.cpp",
+            "test_cryspr.cpp",
+            "test_enforced_encryption.cpp",
+            "test_epoll.cpp",
+            "test_fec_rebuilding.cpp",
+            "test_file_transmission.cpp",
+            "test_ipv6.cpp",
+            "test_listen_callback.cpp",
+            "test_losslist_rcv.cpp",
+            "test_losslist_snd.cpp",
+            "test_many_connections.cpp",
+            "test_muxer.cpp",
+            "test_seqno.cpp",
+            "test_socket_options.cpp",
+            "test_sync.cpp",
+            "test_threadname.cpp",
+            "test_timer.cpp",
+            "test_unitqueue.cpp",
+            "test_utilities.cpp",
+            "test_reuseaddr.cpp",
+            "test_socketdata.cpp",
+            "test_snd_rate_estimator.cpp",
+        },
+    });
     b.getInstallStep().dependOn(&tests.step);
 
     const run_tests = b.addRunArtifact(tests);
@@ -206,45 +267,3 @@ fn set_defines(lib: *Build.Step.Compile, target: Build.ResolvedTarget) void {
     lib.defineCMacro("HAI_ENABLE_SRT", "1");
     lib.defineCMacro("SRT_VERSION", "\"1.5.3\"");
 }
-
-const haicrypt_files = &.{
-    "cryspr.c",
-    "cryspr-mbedtls.c",
-    "hcrypt.c",
-    "hcrypt_ctx_rx.c",
-    "hcrypt_ctx_tx.c",
-    "hcrypt_rx.c",
-    "hcrypt_sa.c",
-    "hcrypt_tx.c",
-    "hcrypt_xpt_srt.c",
-    "haicrypt_log.cpp",
-};
-
-const test_files = &.{
-    "test_main.cpp",
-    "test_buffer_rcv.cpp",
-    "test_common.cpp",
-    "test_connection_timeout.cpp",
-    "test_crypto.cpp",
-    "test_cryspr.cpp",
-    "test_enforced_encryption.cpp",
-    "test_epoll.cpp",
-    "test_fec_rebuilding.cpp",
-    "test_file_transmission.cpp",
-    "test_ipv6.cpp",
-    "test_listen_callback.cpp",
-    "test_losslist_rcv.cpp",
-    "test_losslist_snd.cpp",
-    "test_many_connections.cpp",
-    "test_muxer.cpp",
-    "test_seqno.cpp",
-    "test_socket_options.cpp",
-    "test_sync.cpp",
-    "test_threadname.cpp",
-    "test_timer.cpp",
-    "test_unitqueue.cpp",
-    "test_utilities.cpp",
-    "test_reuseaddr.cpp",
-    "test_socketdata.cpp",
-    "test_snd_rate_estimator.cpp",
-};
