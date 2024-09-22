@@ -5,7 +5,6 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const flags = get_flags(b, target) catch @panic("OOM");
     const srt_dep = b.dependency("srt", .{});
 
     const mbedtls_dep = b.dependency("mbedtls", .{
@@ -55,7 +54,7 @@ pub fn build(b: *std.Build) void {
     inline for (haicrypt_files) |file|
         haicrypt.addCSourceFile(.{
             .file = srt_dep.path(b.fmt("haicrypt/{s}", .{file})),
-            .flags = flags,
+            .flags = &.{},
         });
 
     const version_header = b.addConfigHeader(.{
@@ -87,28 +86,43 @@ pub fn build(b: *std.Build) void {
     srtcore.installHeader(srt_dep.path("srtcore/logging_api.h"), "logging_api.h");
     srtcore.installHeader(srt_dep.path("srtcore/access_control.h"), "access_control.h");
     srtcore.installConfigHeader(version_header);
-
-    inline for (srtcore_files) |file|
-        srtcore.addCSourceFile(.{
-            .file = srt_dep.path(b.fmt("srtcore/{s}", .{file})),
-            .flags = flags,
-        });
-
-    switch (target.result.os.tag) {
-        .linux, .macos => {
-            srtcore.addCSourceFile(.{
-                .file = srt_dep.path("srtcore/sync_posix.cpp"),
-                .flags = flags,
-            });
+    srtcore.addCSourceFiles(.{
+        .root = srt_dep.path("srtcore"),
+        .flags = &.{"-std=c++11"},
+        .files = &.{
+            "api.cpp",
+            "buffer_snd.cpp",
+            "buffer_rcv.cpp",
+            "buffer_tools.cpp",
+            "cache.cpp",
+            "channel.cpp",
+            "common.cpp",
+            "core.cpp",
+            "crypto.cpp",
+            "epoll.cpp",
+            "fec.cpp",
+            "handshake.cpp",
+            "list.cpp",
+            "logger_default.cpp",
+            "logger_defs.cpp",
+            "sync_cxx11.cpp",
+            "md5.cpp",
+            "packet.cpp",
+            "packetfilter.cpp",
+            "queue.cpp",
+            "congctl.cpp",
+            "socketconfig.cpp",
+            "srt_c_api.cpp",
+            "strerror_defs.cpp",
+            "sync.cpp",
+            "tsbpd_time.cpp",
+            "window.cpp",
         },
-        .windows => {
-            srtcore.addCSourceFile(.{
-                .file = srt_dep.path("srtcore/sync_cxx11.cpp"),
-                .flags = flags,
-            });
-        },
-        else => {},
-    }
+    });
+    srtcore.addCSourceFile(.{
+        .file = srt_dep.path("srtcore/srt_compat.c"),
+        .flags = &.{},
+    });
 
     b.installArtifact(srtcore);
 
@@ -159,7 +173,7 @@ pub fn build(b: *std.Build) void {
     inline for (test_files) |file|
         tests.addCSourceFile(.{
             .file = srt_dep.path(b.fmt("test/{s}", .{file})),
-            .flags = flags,
+            .flags = &.{"-fno-sanitize=undefined"},
         });
 
     b.getInstallStep().dependOn(&tests.step);
@@ -192,50 +206,6 @@ fn set_defines(lib: *Build.Step.Compile, target: Build.ResolvedTarget) void {
     lib.defineCMacro("HAI_ENABLE_SRT", "1");
     lib.defineCMacro("SRT_VERSION", "\"1.5.3\"");
 }
-
-fn get_flags(b: *Build, target: Build.ResolvedTarget) ![]const []const u8 {
-    var flags = std.ArrayList([]const u8).init(b.allocator);
-    defer flags.deinit();
-
-    try flags.append("-fno-sanitize=undefined");
-
-    switch (target.result.os.tag) {
-        else => {},
-    }
-
-    return try flags.toOwnedSlice();
-}
-
-const srtcore_files = &.{
-    "api.cpp",
-    "buffer_snd.cpp",
-    "buffer_rcv.cpp",
-    "buffer_tools.cpp",
-    "cache.cpp",
-    "channel.cpp",
-    "common.cpp",
-    "core.cpp",
-    "crypto.cpp",
-    "epoll.cpp",
-    "fec.cpp",
-    "handshake.cpp",
-    "list.cpp",
-    "logger_default.cpp",
-    "logger_defs.cpp",
-
-    "md5.cpp",
-    "packet.cpp",
-    "packetfilter.cpp",
-    "queue.cpp",
-    "congctl.cpp",
-    "socketconfig.cpp",
-    "srt_c_api.cpp",
-    "srt_compat.c",
-    "strerror_defs.cpp",
-    "sync.cpp",
-    "tsbpd_time.cpp",
-    "window.cpp",
-};
 
 const haicrypt_files = &.{
     "cryspr.c",
