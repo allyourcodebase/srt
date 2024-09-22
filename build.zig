@@ -1,4 +1,4 @@
-const std = @import("file-std");
+const std = @import("std");
 const Build = std.Build;
 
 pub fn build(b: *std.Build) void {
