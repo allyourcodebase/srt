@@ -1,4 +1,4 @@
-const std = @import("file-std");
+const std = @import("std");
 const Build = std.Build;
 
 pub fn build(b: *std.Build) void {
@@ -51,7 +51,9 @@ pub fn build(b: *std.Build) void {
     haicrypt.addIncludePath(srt_dep.path("common"));
     haicrypt.addCSourceFiles(.{
         .root = srt_dep.path("haicrypt"),
-        .flags = &.{},
+        .flags = &.{
+            "-fno-sanitize=undefined",
+        },
         .files = &.{
             "cryspr.c",
             "cryspr-mbedtls.c",
@@ -94,10 +96,28 @@ pub fn build(b: *std.Build) void {
     srtcore.installHeader(srt_dep.path("srtcore/srt.h"), "srt.h");
     srtcore.installHeader(srt_dep.path("srtcore/logging_api.h"), "logging_api.h");
     srtcore.installHeader(srt_dep.path("srtcore/access_control.h"), "access_control.h");
+    if (target.result.os.tag == .windows) {
+        srtcore.linkSystemLibrary("wsock32");
+        srtcore.linkSystemLibrary("ws2_32");
+        srtcore.installHeader(srt_dep.path("common/win/syslog_defs.h"), "win/syslog_defs.h");
+        srtcore.installHeader(srt_dep.path("common/win/unistd.h"), "win/unistd.h");
+        srtcore.installHeader(srt_dep.path("common/win/wintime.h"), "win/wintime.h");
+        srtcore.addCSourceFile(.{
+            .file = srt_dep.path("common/win_time.cpp"),
+            .flags = &.{
+                "-std=c++11",
+                "-fno-sanitize=undefined",
+            },
+        });
+    }
     srtcore.installConfigHeader(version_header);
     srtcore.addCSourceFiles(.{
         .root = srt_dep.path("srtcore"),
-        .flags = &.{"-std=c++11"},
+        .flags = &.{
+            "-std=c++11",
+
+            "-fno-sanitize=undefined",
+        },
         .files = &.{
             "api.cpp",
             "buffer_snd.cpp",
@@ -130,7 +150,9 @@ pub fn build(b: *std.Build) void {
     });
     srtcore.addCSourceFile(.{
         .file = srt_dep.path("srtcore/srt_compat.c"),
-        .flags = &.{},
+        .flags = &.{
+            "-fno-sanitize=undefined",
+        },
     });
 
     b.installArtifact(srtcore);
@@ -143,7 +165,10 @@ pub fn build(b: *std.Build) void {
     });
     live_transmit.addCSourceFiles(.{
         .root = srt_dep.path("apps"),
-        .flags = &.{"-std=c++11"},
+        .flags = &.{
+            "-std=c++11",
+            "-fno-sanitize=undefined",
+        },
         .files = &.{
             "srt-live-transmit.cpp",
             "apputil.cpp",
@@ -171,7 +196,11 @@ pub fn build(b: *std.Build) void {
     });
     file_transmit.addCSourceFiles(.{
         .root = srt_dep.path("apps"),
-        .flags = &.{"-std=c++11"},
+        .flags = &.{
+            "-std=c++11",
+
+            "-fno-sanitize=undefined",
+        },
         .files = &.{
             "srt-file-transmit.cpp",
             "apputil.cpp",
@@ -188,6 +217,7 @@ pub fn build(b: *std.Build) void {
     file_transmit.linkLibrary(srtcore);
     file_transmit.addIncludePath(srt_dep.path("apps"));
     file_transmit.addIncludePath(srt_dep.path("srtcore"));
+    live_transmit.addIncludePath(srt_dep.path("core"));
     set_defines(file_transmit, target);
     b.installArtifact(file_transmit);
 
@@ -204,7 +234,7 @@ pub fn build(b: *std.Build) void {
     tests.linkLibrary(haicrypt);
     tests.addIncludePath(srt_dep.path("srtcore"));
     tests.addIncludePath(srt_dep.path("haicrypt"));
-    tests.addIncludePath(srt_dep.path("common"));
+    //tests.addIncludePath(srt_dep.path("common"));
     tests.addCSourceFiles(.{
         .root = srt_dep.path("test"),
         .flags = &.{"-fno-sanitize=undefined"},
@@ -246,6 +276,7 @@ pub fn build(b: *std.Build) void {
 
 fn set_defines(lib: *Build.Step.Compile, target: Build.ResolvedTarget) void {
     switch (target.result.os.tag) {
+        .macos => {},
         .linux => {
             lib.defineCMacro("LINUX", "1");
             lib.defineCMacro("SRT_ENABLE_BINDTODEVICE", null);
@@ -254,10 +285,13 @@ fn set_defines(lib: *Build.Step.Compile, target: Build.ResolvedTarget) void {
             lib.defineCMacro("WIN32", "1");
             lib.defineCMacro("PTW32_STATIC_LIB", "1");
         },
-        .freebsd, .netbsd, .openbsd, .dragonfly => lib.defineCMacro("BSD", "1"),
+        .freebsd, .netbsd, .openbsd, .dragonfly => {
+            lib.defineCMacro("BSD", "1");
+        },
         else => {},
     }
 
+    lib.defineCMacro("HAVE_INET_PTON", "1");
     lib.defineCMacro("ENABLE_STDCXX_SYNC", "1");
     lib.defineCMacro("HAVE_CXX_STD_PUT_TIME", "1");
     lib.defineCMacro("USE_MBEDTLS", "1");
