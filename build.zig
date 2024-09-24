@@ -41,7 +41,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .link_libc = true,
     });
-    set_defines(haicrypt, target);
+    set_defines(haicrypt, target, optimize);
     haicrypt.linkLibCpp();
     haicrypt.linkLibrary(mbedtls_dep.artifact("mbedtls"));
     haicrypt.installHeader(srt_dep.path("haicrypt/haicrypt.h"), "haicrypt.h");
@@ -88,7 +88,7 @@ pub fn build(b: *std.Build) void {
     });
     srtcore.linkLibCpp();
     srtcore.linkLibrary(haicrypt);
-    set_defines(srtcore, target);
+    set_defines(srtcore, target, optimize);
     srtcore.addIncludePath(version_header.getOutput().dirname());
     srtcore.addIncludePath(srt_dep.path("haicrypt"));
     srtcore.addIncludePath(srt_dep.path("srtcore"));
@@ -186,7 +186,7 @@ pub fn build(b: *std.Build) void {
     live_transmit.linkLibrary(srtcore);
     live_transmit.addIncludePath(srt_dep.path("apps"));
     live_transmit.addIncludePath(srt_dep.path("srtcore"));
-    set_defines(live_transmit, target);
+    set_defines(live_transmit, target, optimize);
     b.installArtifact(live_transmit);
 
     const file_transmit = b.addExecutable(.{
@@ -219,7 +219,7 @@ pub fn build(b: *std.Build) void {
     file_transmit.addIncludePath(srt_dep.path("apps"));
     file_transmit.addIncludePath(srt_dep.path("srtcore"));
     live_transmit.addIncludePath(srt_dep.path("core"));
-    set_defines(file_transmit, target);
+    set_defines(file_transmit, target, optimize);
     b.installArtifact(file_transmit);
 
     const tests = b.addExecutable(.{
@@ -228,7 +228,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .link_libc = true,
     });
-    set_defines(tests, target);
+    set_defines(tests, target, optimize);
     tests.linkLibCpp();
     tests.linkLibrary(googletest_dep.artifact("gtest"));
     tests.linkLibrary(srtcore);
@@ -275,7 +275,11 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&run_tests.step);
 }
 
-fn set_defines(lib: *Build.Step.Compile, target: Build.ResolvedTarget) void {
+fn set_defines(
+    lib: *Build.Step.Compile,
+    target: Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+) void {
     switch (target.result.os.tag) {
         .macos => {},
         .linux => {
@@ -292,6 +296,9 @@ fn set_defines(lib: *Build.Step.Compile, target: Build.ResolvedTarget) void {
         else => {},
     }
 
+    if (optimize == .Debug) {
+        lib.defineCMacro("ENABLE_LOGGING", "1");
+    }
     lib.defineCMacro("HAVE_INET_PTON", "1");
     lib.defineCMacro("ENABLE_STDCXX_SYNC", "1");
     lib.defineCMacro("HAVE_CXX_STD_PUT_TIME", "1");
