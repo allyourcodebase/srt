@@ -4,6 +4,7 @@ const Build = std.Build;
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+    const enable_logging = b.option(bool, "enable-logging", "Should logging be enabled") orelse (optimize == .Debug);
 
     const srt_dep = b.dependency("srt", .{});
 
@@ -17,6 +18,9 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    const srt_version_string = "1.5.4";
+    const version = std.SemanticVersion.parse(srt_version_string) catch unreachable;
+
     // TODO:
     // ENABLE_BONDING
     // ENABLE_CXX11
@@ -26,7 +30,6 @@ pub fn build(b: *std.Build) void {
     // ENABLE_HAICRYPT_LOGGING
     // ENABLE_HEAVY_LOGGING
     // ENABLE_INET_PTON
-    // ENABLE_LOGGING
     // ENABLE_MONOTONIC_CLOCK
     // ENABLE_STDCXX_SYNC
     // ENABLE_THREAD_CHECK
@@ -41,7 +44,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .link_libc = true,
     });
-    set_defines(haicrypt, target, optimize);
+    setDefines(b, srt_version_string, haicrypt, target, enable_logging);
     haicrypt.linkLibCpp();
     haicrypt.linkLibrary(mbedtls_dep.artifact("mbedtls"));
     haicrypt.installHeader(srt_dep.path("haicrypt/haicrypt.h"), "haicrypt.h");
@@ -73,10 +76,10 @@ pub fn build(b: *std.Build) void {
             .cmake = srt_dep.path("srtcore/version.h.in"),
         },
     }, .{
-        .SRT_VERSION_MAJOR = "1",
-        .SRT_VERSION_MINOR = "5",
-        .SRT_VERSION_PATCH = "3",
-        .SRT_VERSION = "1.5.3",
+        .SRT_VERSION_MAJOR = std.fmt.allocPrint(b.allocator, "{}", .{version.major}) catch unreachable,
+        .SRT_VERSION_MINOR = std.fmt.allocPrint(b.allocator, "{}", .{version.minor}) catch unreachable,
+        .SRT_VERSION_PATCH = std.fmt.allocPrint(b.allocator, "{}", .{version.patch}) catch unreachable,
+        .SRT_VERSION = srt_version_string,
         .CI_BUILD_NUMBER_STRING = "0",
     });
 
@@ -88,7 +91,7 @@ pub fn build(b: *std.Build) void {
     });
     srtcore.linkLibCpp();
     srtcore.linkLibrary(haicrypt);
-    set_defines(srtcore, target, optimize);
+    setDefines(b, srt_version_string, srtcore, target, enable_logging);
     srtcore.addIncludePath(version_header.getOutput().dirname());
     srtcore.addIncludePath(srt_dep.path("haicrypt"));
     srtcore.addIncludePath(srt_dep.path("srtcore"));
@@ -156,6 +159,15 @@ pub fn build(b: *std.Build) void {
         },
     });
 
+    if (enable_logging) {
+        srtcore.addCSourceFile(.{
+            .file = srt_dep.path("srtcore/logging.cpp"),
+            .flags = &.{
+                "-fno-sanitize=undefined",
+            },
+        });
+    }
+
     b.installArtifact(srtcore);
 
     const live_transmit = b.addExecutable(.{
@@ -186,7 +198,7 @@ pub fn build(b: *std.Build) void {
     live_transmit.linkLibrary(srtcore);
     live_transmit.addIncludePath(srt_dep.path("apps"));
     live_transmit.addIncludePath(srt_dep.path("srtcore"));
-    set_defines(live_transmit, target, optimize);
+    setDefines(b, srt_version_string, live_transmit, target, enable_logging);
     b.installArtifact(live_transmit);
 
     const file_transmit = b.addExecutable(.{
@@ -219,7 +231,7 @@ pub fn build(b: *std.Build) void {
     file_transmit.addIncludePath(srt_dep.path("apps"));
     file_transmit.addIncludePath(srt_dep.path("srtcore"));
     live_transmit.addIncludePath(srt_dep.path("core"));
-    set_defines(file_transmit, target, optimize);
+    setDefines(b, srt_version_string, file_transmit, target, enable_logging);
     b.installArtifact(file_transmit);
 
     const tests = b.addExecutable(.{
@@ -228,7 +240,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .link_libc = true,
     });
-    set_defines(tests, target, optimize);
+    setDefines(b, srt_version_string, tests, target, enable_logging);
     tests.linkLibCpp();
     tests.linkLibrary(googletest_dep.artifact("gtest"));
     tests.linkLibrary(srtcore);
@@ -275,37 +287,39 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&run_tests.step);
 }
 
-fn set_defines(
+fn setDefines(
+    b: *std.Build,
+    version_string: []const u8,
     lib: *Build.Step.Compile,
     target: Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
+    enable_logging: bool,
 ) void {
     switch (target.result.os.tag) {
         .macos => {},
         .linux => {
-            lib.defineCMacro("LINUX", "1");
-            lib.defineCMacro("SRT_ENABLE_BINDTODEVICE", null);
+            lib.root_module.addCMacro("LINUX", "1");
+            lib.root_module.addCMacro("SRT_ENABLE_BINDTODEVICE", "1");
         },
         .windows => {
-            lib.defineCMacro("WIN32", "1");
-            lib.defineCMacro("PTW32_STATIC_LIB", "1");
+            lib.root_module.addCMacro("WIN32", "1");
+            lib.root_module.addCMacro("PTW32_STATIC_LIB", "1");
         },
         .freebsd, .netbsd, .openbsd, .dragonfly => {
-            lib.defineCMacro("BSD", "1");
+            lib.root_module.addCMacro("BSD", "1");
         },
         else => {},
     }
 
-    if (optimize == .Debug) {
-        lib.defineCMacro("ENABLE_LOGGING", "1");
+    if (enable_logging) {
+        lib.root_module.addCMacro("ENABLE_LOGGING", "1");
     }
-    lib.defineCMacro("HAVE_INET_PTON", "1");
-    lib.defineCMacro("ENABLE_STDCXX_SYNC", "1");
-    lib.defineCMacro("HAVE_CXX_STD_PUT_TIME", "1");
-    lib.defineCMacro("USE_MBEDTLS", "1");
-    lib.defineCMacro("SRT_ENABLE_ENCRYPTION", "1");
-    lib.defineCMacro("_GNU_SOURCE", null);
-    lib.defineCMacro("HAI_PATCH", "1");
-    lib.defineCMacro("HAI_ENABLE_SRT", "1");
-    lib.defineCMacro("SRT_VERSION", "\"1.5.3\"");
+    lib.root_module.addCMacro("HAVE_INET_PTON", "1");
+    lib.root_module.addCMacro("ENABLE_STDCXX_SYNC", "1");
+    lib.root_module.addCMacro("HAVE_CXX_STD_PUT_TIME", "1");
+    lib.root_module.addCMacro("USE_MBEDTLS", "1");
+    lib.root_module.addCMacro("SRT_ENABLE_ENCRYPTION", "1");
+    lib.root_module.addCMacro("_GNU_SOURCE", "1");
+    lib.root_module.addCMacro("HAI_PATCH", "1");
+    lib.root_module.addCMacro("HAI_ENABLE_SRT", "1");
+    lib.root_module.addCMacro("SRT_VERSION", std.fmt.allocPrint(b.allocator, "\"{s}\"", .{version_string}) catch unreachable);
 }
